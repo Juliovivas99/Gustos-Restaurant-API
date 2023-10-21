@@ -1,0 +1,10 @@
+{
+    "watch": ["src", "prisma/schema.prisma"],
+    "ext": "ts,prisma",
+    "exec": "ts-node src/server.ts",
+    "ignore": ["src/generated"],
+    "events": {
+      "restart": "npx prisma generate"
+    }
+  }
+  
