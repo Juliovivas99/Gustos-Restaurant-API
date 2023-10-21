@@ -11,64 +11,46 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  phone     String
-  age Int
-  reservations Reservation[]
+  id            String        @id @default(uuid())
+  name          String
+  phone         String
+  age           Int
+  reservations  Reservation[]
   @@unique([name, phone])
 }
 
 model Reservation {
-  id        Int     @id @default(autoincrement())
-  user      User    @relation(fields: [userId], references: [id])
-  userId    String
-  dateTime  DateTime 
-  duration        Int
-  numberOfGuests   Int
-  tableId   Int
-  restaurantTable RestaurantTable @relation(fields: [tableId], references: [id])
+  id                Int               @id @default(autoincrement())
+  user              User              @relation(fields: [userId], references: [id])
+  userId            String
+  dateTime          DateTime
+  duration          Int
+  numberOfGuests    Int
+  reservationTables ReservationTable[]  // New relation field
 }
 
 model RestaurantTable {
-  id          Int     @id @default(autoincrement())
-  isAvailable Boolean
-  capacity    Int
-  reservations Reservation[]
+  id               Int               @id @default(autoincrement())
+  isAvailable      Boolean
+  capacity         Int
+  reservationTables ReservationTable[]  // New relation field
+}
+
+model ReservationTable {
+  reservation   Reservation     @relation(fields: [reservationId], references: [id])
+  reservationId Int
+  restaurantTable RestaurantTable @relation(fields: [tableId], references: [id])
+  tableId       Int
+
+  @@id([reservationId, tableId])
 }
 
 
-// model User {
-//   id            String         @id @default(uuid())
-//   name          String
-//   phone         String
-//   age           Int
-//   reservations  Reservation[]
-//   @@unique([name, phone])
+// // New join model for the many-to-many relation
+// model ReservationTable {
+//   reservationId   Int
+//   tableId         Int
+//   reservation     Reservation       @relation(fields: [reservationId], references: [id])
+//   restaurantTable RestaurantTable   @relation(fields: [tableId], references: [id])
+//   @@id([reservationId, tableId])
 // }
-
-// model Reservation {
-//   id            Int               @id @default(autoincrement())
-//   user          User              @relation(fields: [userId], references: [id])
-//   userId        String
-//   dateTime      DateTime
-//   duration      Int
-//   numberOfGuests Int
-//   restaurantTables ReservationTable[] // New relation
-// }
-
-// model RestaurantTable {
-//   id              Int               @id @default(autoincrement())
-//   isAvailable     Boolean
-//   capacity        Int
-//   reservations    ReservationTable[] // New relation
-// }
-
-// // // New join model for the many-to-many relation
-// // model ReservationTable {
-// //   reservationId   Int
-// //   tableId         Int
-// //   reservation     Reservation       @relation(fields: [reservationId], references: [id])
-// //   restaurantTable RestaurantTable   @relation(fields: [tableId], references: [id])
-// //   @@id([reservationId, tableId])
-// // }

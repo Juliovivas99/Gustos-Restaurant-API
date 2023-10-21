@@ -38,11 +38,11 @@ export const createReservation = async (req: Request, res: Response) => {
                 AND: [
                     {
                         isAvailable: true,
-                        reservations: {
+                        reservationTables: {
                             none: {
                                 OR: [
-                                    { dateTime: { gte: endTime } },
-                                    { dateTime: { lt: startTime } },
+                                    { reservation: { dateTime: { gte: endTime } } },
+                                    { reservation: { dateTime: { lt: startTime } } },
                                 ],
                             },
                         },
@@ -57,19 +57,21 @@ export const createReservation = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Not enough tables available for the selected time, try a different time slot.' });
         }
 
-        if (user && user.age > 21) {
-            console.log("Bring table wine menu");
-        }
+        const newReservation = await prisma.reservation.create({
+            data: {
+                user: { connect: { id: userId } },
+                dateTime: startTime,
+                duration: duration,
+                numberOfGuests,
+            },
+        });
 
-        const newReservations = await Promise.all(
+        await Promise.all(
             availableTables.map(async (table) => {
-                const newReservation = await prisma.reservation.create({
+                await prisma.reservationTable.create({
                     data: {
-                        user: { connect: { id: userId } },
-                        dateTime: startTime,
-                        duration: duration,
-                        numberOfGuests,
-                        restaurantTable: { connect: { id: table.id } },
+                        reservationId: newReservation.id,
+                        tableId: table.id,
                     },
                 });
 
@@ -77,8 +79,6 @@ export const createReservation = async (req: Request, res: Response) => {
                     where: { id: table.id },
                     data: { isAvailable: false },
                 });
-
-                return newReservation;
             })
         );
 
@@ -86,11 +86,12 @@ export const createReservation = async (req: Request, res: Response) => {
             console.log("Gratuity is included.");
         }
 
-        res.status(201).json({ message: 'Reservation created', reservations: newReservations });
+        res.status(201).json({ message: 'Reservation created', reservation: newReservation });
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 export const getAllReservations = async (req: Request, res: Response) => {
     try {
@@ -124,10 +125,11 @@ export const deleteReservation = async (req: Request, res: Response) => {
     const { id } = req.params;
 
     try {
+        // Check if the reservation exists and retrieve related tables
         const reservation = await prisma.reservation.findUnique({
             where: { id: parseInt(id) },
-            select: {
-                tableId: true, 
+            include: {
+                reservationTables: true, // Include the related tables
             },
         });
     
@@ -135,20 +137,27 @@ export const deleteReservation = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Reservation not found' });
         }
     
+        // Delete the reservation
         await prisma.reservation.delete({
             where: { id: parseInt(id) },
         });
     
-        await prisma.restaurantTable.update({
-            where: { id: reservation.tableId }, 
-            data: { isAvailable: true },
-        });
+        // Update the status of the tables that were related to the reservation
+        await Promise.all(
+            reservation.reservationTables.map(async (resTable) => {
+                await prisma.restaurantTable.update({
+                    where: { id: resTable.tableId }, 
+                    data: { isAvailable: true },
+                });
+            })
+        );
     
         res.status(204).send();
     } catch (error) {
         res.status(500).json({ error: 'Internal server error' });
     }
-};    
+};
+
 
 // export const updateReservation = async (req: Request, res: Response) => {
 //     const { id } = req.params;
